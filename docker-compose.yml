@@ -1,10 +1,22 @@
 services:
+  nginx:
+    image: nginx:alpine
+    container_name: claravector-nginx
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      claravector:
+        condition: service_healthy
+
   claravector:
     build: .
     container_name: claravector
     restart: unless-stopped
-    ports:
-      - "8000:8000"
+    expose:
+      - "8000"
     env_file:
       - .env
     volumes:

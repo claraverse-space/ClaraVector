@@ -1,12 +1,49 @@
 from contextlib import asynccontextmanager
 import logging
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
+from starlette.middleware.base import BaseHTTPMiddleware
 
 from app.config import get_settings
 from app.api.dependencies import get_database, get_embedding_queue
 from app.api.routes import health, users, notebooks, documents, search, queue
+
+
+class APIKeyMiddleware(BaseHTTPMiddleware):
+    """Middleware to validate API key on all requests."""
+
+    # Paths that don't require authentication
+    PUBLIC_PATHS = {"/", "/docs", "/redoc", "/openapi.json", "/api/v1/health"}
+
+    async def dispatch(self, request: Request, call_next):
+        settings = get_settings()
+
+        # Skip auth if no API key is configured
+        if not settings.api_key:
+            return await call_next(request)
+
+        # Skip auth for public paths and OPTIONS requests
+        if request.url.path in self.PUBLIC_PATHS or request.method == "OPTIONS":
+            return await call_next(request)
+
+        # Check API key
+        api_key = request.headers.get("X-API-Key") or request.query_params.get("api_key")
+
+        if not api_key:
+            return JSONResponse(
+                status_code=401,
+                content={"detail": "Missing API key. Provide X-API-Key header or api_key query param."}
+            )
+
+        if api_key != settings.api_key:
+            return JSONResponse(
+                status_code=403,
+                content={"detail": "Invalid API key"}
+            )
+
+        return await call_next(request)
 
 
 # Configure logging
@@ -48,8 +85,13 @@ app = FastAPI(
     lifespan=lifespan
 )
 
-# Add CORS middleware with configurable origins
+# Add middlewares (order matters - first added = last executed)
 settings = get_settings()
+
+# API Key authentication
+app.add_middleware(APIKeyMiddleware)
+
+# CORS
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.cors_origins_list,

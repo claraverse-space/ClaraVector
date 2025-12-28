@@ -4,6 +4,9 @@ from functools import lru_cache
 
 
 class Settings(BaseSettings):
+    # API Security
+    api_key: str = ""  # Required for all endpoints if set
+
     # NVIDIA NIM Configuration
     nim_api_key: str = ""
     nim_base_url: str = "https://integrate.api.nvidia.com/v1"
