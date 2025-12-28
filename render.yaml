@@ -1,0 +1,15 @@
+services:
+  - type: web
+    name: claravector
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    envVars:
+      - key: NIM_API_KEY
+        sync: false
+      - key: PORT
+        value: 8000
+    healthCheckPath: /api/v1/health
+    disk:
+      name: clara-data
+      mountPath: /app/data
+      sizeGB: 10
